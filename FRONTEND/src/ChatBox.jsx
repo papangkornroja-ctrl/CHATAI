@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 
+// ที่อยู่ backend: ตอนพัฒนาเรียกตรงพอร์ต 3000, ตอนขึ้นเว็บจริงตั้งค่าผ่าน VITE_API_URL
+const API_BASE =
+  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3000' : '')
+
 // ครอบ <pre> ของ Markdown เพื่อเพิ่มปุ่ม Copy
 function CodeBlock({ children }) {
   const [copied, setCopied] = useState(false)
@@ -50,14 +54,20 @@ export default function ChatBox() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, history }),
         signal: AbortSignal.timeout(30000),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      if (!res.ok) {
+        throw new Error(
+          res.status === 404
+            ? 'ไม่พบ /api/chat — ตรวจว่า backend ที่รันอยู่คือ server.js ตัวล่าสุดและใช้พอร์ต 3000'
+            : data.error || `HTTP ${res.status}`
+        )
+      }
       setMessages((prev) => [...prev, { role: 'assistant', text: data.reply }])
     } catch (err) {
       if (err.name === 'TimeoutError') {
